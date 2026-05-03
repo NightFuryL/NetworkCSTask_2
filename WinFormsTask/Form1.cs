@@ -19,12 +19,14 @@ namespace WinFormsTask
                 SocketType.Stream,
                 ProtocolType.Tcp
                 );
+
             try
             {
                 //2. Connect
                 IPAddress remoteIP = IPAddress.Loopback;
                 int remotePort = 9090;
                 IPEndPoint remote = new IPEndPoint(remoteIP, remotePort);
+                socket.Connect( remote );
                 //3. Send & Recieve
                 byte[] buffer = new byte[1024];
                 int bytesRead = 0;
