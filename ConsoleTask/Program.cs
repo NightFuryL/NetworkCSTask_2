@@ -4,46 +4,45 @@ using System.Text;
 
 namespace ConsoleTask;
 
-internal class Program
+public class Program
 {
-    static void Main(string[] args)
+    
+    private static async Task Main(string[] args)
+    {
+        using Socket server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+        int localPort = 9090;
+        IPAddress localIp = IPAddress.Any;
+        IPEndPoint localEp = new IPEndPoint(localIp, localPort);
+        server.Bind(localEp);
+
+        server.Listen();
+        while (true) { 
+            Socket client = await server.AcceptAsync();
+            _ = Task.Run(() => HandleClientAsync(client));
+        }
+
+    }
+
+    private static async void HandleClientAsync(Socket client)
     {
         try
         {
-            //1. Create
-            using Socket server = new Socket(
-                AddressFamily.InterNetwork,
-                SocketType.Stream,
-                ProtocolType.Tcp);
-
-            //2. Bind
-            IPAddress serverIP = IPAddress.Any;
-            int port = 9090;
-            IPEndPoint localEP = new IPEndPoint(serverIP, port);
-            server.Bind(localEP);
-
-            //3. Listen
-            server.Listen(5);
-
-            //4. Accept
-            using Socket client = server.Accept(); //Клієнтський сокет 
-            Console.WriteLine($"New client: {client.RemoteEndPoint}");
-            string greeting = "Hello from server!!!";
-            byte[] data = Encoding.UTF8.GetBytes(greeting);
-
-            //5. Send & Recieve
-            client.Send(data);
+            byte[] buffer = new byte[1024];
+            while (true)
+            {
+                int bytes = await client.ReceiveAsync(buffer);
+                if (bytes == 0) break;
+                string data = Encoding.UTF8.GetString(buffer, 0, bytes);
+                Console.WriteLine($"Client ({client.RemoteEndPoint}) message: {data}");
+                string answer = "Echo: " + data;
+                byte[] answerData = Encoding.UTF8.GetBytes(answer);
+                await client.SendAsync(answerData);
+            }
         }
-        catch (Exception ex)
+        catch(Exception ex)
         {
-            Console.WriteLine($"ERROR: {ex.Message}");
+            Console.WriteLine($"ERROR: {ex.ToString()}");
         }
-        finally
-        {
-            Console.WriteLine("Server shut down!");
-            //6. Close
-            //server.Close();
-            //client.Close();
-        }
+        client.Close();
     }
 }
