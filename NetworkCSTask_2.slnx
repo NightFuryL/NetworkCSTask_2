@@ -1,5 +1,4 @@
 <Solution>
-  <Project Path="ClientWinFormsTask/ClientWinFormsTask.csproj" Id="3042d1dc-42d3-4ede-b59c-d80a745dbb4e" />
-  <Project Path="LibraryTask/LibraryTask.csproj" Id="861bb9c8-2b8c-4b56-ad22-bc918502e829" />
-  <Project Path="ServerConsoleTask/ServerConsoleTask.csproj" Id="5ebe930e-9ae8-4cdf-8417-81996564b5f4" />
+  <Project Path="ConsoleServer/ConsoleServer.csproj" Id="9ed1ccb0-6947-45cf-9493-574d4304343f" />
+  <Project Path="WinFormsClient/WinFormsClient.csproj" Id="a6923bec-b1b6-4d9a-955a-3965983b00d2" />
 </Solution>
