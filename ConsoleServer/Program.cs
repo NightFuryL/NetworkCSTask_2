@@ -6,6 +6,18 @@ internal class Program
     private const int SERVER_PORT = 9999;
     private static IPEndPoint _serverEp;
     private static IPAddress _serverIp;
+
+    private static List<string> _quotes = new List<string>()
+    {
+        "Knowledge is power.",
+        "Stay hungry, stay foolish.",
+        "Practice makes perfect.",
+        "Never give up.",
+        "Code is like humor.",
+        "Dream big.",
+        "Learning never stops."
+    };
+
     static async Task Main(string[] args)
     {
         _serverIp = IPAddress.Any;
@@ -14,12 +26,13 @@ internal class Program
         using TcpListener server = new TcpListener(_serverEp);
 
         server.Start();
-        Console.WriteLine($"Server is running: {server.LocalEndpoint}");
+
+        Console.WriteLine($"[SERVER] Running: {server.LocalEndpoint}");
 
         while (true)
         {
             TcpClient client = await server.AcceptTcpClientAsync();
-            Console.WriteLine($"Client connected: {client.Client.RemoteEndPoint}");
+            Console.WriteLine($"[CLIENT][{DateTime.Now:F}] Connected: {client.Client.RemoteEndPoint}");
             _ = Task.Run(() => HandleClientAsync(client));
         }
     }
@@ -34,23 +47,31 @@ internal class Program
                 int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
                 if (bytesRead == 0) break;
                 string message = System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                Console.WriteLine($"New message from {client.Client.RemoteEndPoint}: {message}");
-
-                string answer =$"ECHO: {message}";
-                byte[] response = System.Text.Encoding.UTF8.GetBytes(answer);
-                await stream.WriteAsync(response);
+                if(message == "GET")
+                {
+                    string qoute = _quotes[Random.Shared.Next(_quotes.Count)];
+                    string answer = $"Quote: {qoute}";
+                    Console.WriteLine($"[SERVER]({DateTime.Now:F}) (({answer})) - {client.Client.RemoteEndPoint}");
+                    byte[] response = System.Text.Encoding.UTF8.GetBytes(answer);
+                    await stream.WriteAsync(response);
+                }
+                if (message == "DISCONNECT")
+                {
+                    Console.WriteLine($"[CLIENT]({DateTime.Now:F}) disconnected: {client.Client.RemoteEndPoint}");
+                    break;
+                }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"ERROR: {ex.Message}");
+            Console.WriteLine($"[ERROR] {ex.Message}");
         }
         finally
         {
             
             stream.Close();
             client.Close();
-            Console.WriteLine($"Client disconnected: {client.Client.RemoteEndPoint}");
+            Console.WriteLine($"[CLIENT]({DateTime.Now:F}) disconnected: {client.Client.RemoteEndPoint}");
         }
     }
 }

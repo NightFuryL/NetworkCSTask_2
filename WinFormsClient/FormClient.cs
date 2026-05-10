@@ -26,7 +26,7 @@ public partial class FormClient : Form
             }
             await _client.ConnectAsync(_ipAddress, SERVER_PORT);
 
-            MessageBox.Show($"Connected to server: {_client.Client.RemoteEndPoint}");
+            //MessageBox.Show($"Connected to server: {_client.Client.RemoteEndPoint}");
 
             btnConnect.Enabled = false;
             btnSend.Enabled = true;
@@ -42,7 +42,7 @@ public partial class FormClient : Form
     {
         try
         {
-            string message = txtMessage.Text.Trim();
+            string message = "GET";
             byte[] data = System.Text.Encoding.UTF8.GetBytes(message);
             await _client.GetStream().WriteAsync(data, 0, data.Length);
 
@@ -57,24 +57,34 @@ public partial class FormClient : Form
             MessageBox.Show($"Error sending message: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
-    private void btnDisconnect_Click(object sender, EventArgs e)
+    private async void btnDisconnect_Click(object sender, EventArgs e)
     {
-        Disconnect();
+        await Disconnect();
 
         btnConnect.Enabled = true;
         btnSend.Enabled = false;
         btnDisconnect.Enabled = false;
     }
-    private void FormClient_FormClosing(object sender, FormClosingEventArgs e)
+    private async void FormClient_FormClosing(object sender, FormClosingEventArgs e)
     {
-        Disconnect();
+        await Disconnect();
     }
-    private void Disconnect()
+    private async Task Disconnect()
     {
-        if (_client.Connected)
+        try
         {
-            _client.Close();
-            MessageBox.Show("Disconnected from server.");
+            if (_client != null && _client.Connected)
+            {
+                byte[] data = System.Text.Encoding.UTF8.GetBytes("DISCONNECT");
+
+                await _client.GetStream().WriteAsync(data, 0, data.Length);
+
+                _client.Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Disconnect error: {ex.Message}");
         }
     }
 }
