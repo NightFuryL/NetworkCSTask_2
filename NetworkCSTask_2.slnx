@@ -1,4 +1,14 @@
 <Solution>
-  <Project Path="LibraryServer/LibraryServer.csproj" Id="5a431bdf-fc7f-401e-b89f-64976875272c" />
-  <Project Path="WinFormsClient/WinFormsClient.csproj" Id="a6923bec-b1b6-4d9a-955a-3965983b00d2" />
+  <Folder Name="/Classwork_17_05_2026/" />
+  <Folder Name="/Classwork_17_05_2026/first_session/">
+    <Project Path="BroadcastReceiver/BroadcastReceiver.csproj" />
+    <Project Path="BroadcastSender/BroadcastSender.csproj" />
+    <Project Path="MulticastReceiver/MulticastReceiver.csproj" Id="28990cef-658e-4c58-817a-70398a0bb626" />
+    <Project Path="MulticastSender/MulticastSender.csproj" Id="2fc1ac64-2aa5-4b94-978c-1351927d308c" />
+  </Folder>
+  <Folder Name="/Classwork_17_05_2026/second_session/" />
+  <Folder Name="/HW_16.05.2026_23.05.2026/">
+    <Project Path="LibraryServer/LibraryServer.csproj" Id="5a431bdf-fc7f-401e-b89f-64976875272c" />
+    <Project Path="WinFormsClient/WinFormsClient.csproj" Id="a6923bec-b1b6-4d9a-955a-3965983b00d2" />
+  </Folder>
 </Solution>
