@@ -1,4 +1,4 @@
 <Solution>
-  <Project Path="ConsoleServer/ConsoleServer.csproj" Id="9ed1ccb0-6947-45cf-9493-574d4304343f" />
+  <Project Path="LibraryServer/LibraryServer.csproj" Id="5a431bdf-fc7f-401e-b89f-64976875272c" />
   <Project Path="WinFormsClient/WinFormsClient.csproj" Id="a6923bec-b1b6-4d9a-955a-3965983b00d2" />
 </Solution>

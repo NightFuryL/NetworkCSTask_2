@@ -1,40 +1,109 @@
+//UdpReceiveResult проста обгортка для отримання даних для UDP
+//Щоб почати користуватися треба спочатку додати/вибрати користувача 
+//потім натиснути старт і можна відправляти повідомлення людині з якою хочемо спілкуватися
+//Наразі це все локально тому і такий інтерфейс
+//Синхронізація чату, кольорів повідомленнях, збереження історії все це є
+using LibraryServer;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
+
 namespace WinFormsClient;
+
 public partial class FormClient : Form
 {
-    private TcpClient _client = null!;
-    private IPAddress _ipAddress = IPAddress.Loopback;
-    private const int SERVER_PORT = 9999;
+    private UdpClient _udpClient = null!;
+    private UserInfo _currentUser = new();
+    private Color _ownColor = Color.White;
+
     public FormClient()
     {
         InitializeComponent();
-        _client = new TcpClient();
+        LoadUsers();
     }
-    private async void btnConnect_Click(object sender, EventArgs e)
+
+    private void FormClient_Load(object sender, EventArgs e)
+    {
+        btnSend.Enabled = false;
+        btnGetColorMessage.Enabled = false;
+        cbmChats.Enabled = false;
+    }
+
+    private void LoadUsers()
+    {
+        cmbUsers.Items.Clear();
+
+        foreach (UserInfo user in ClientManager.GetAllUsers())
+        {
+            cmbUsers.Items.Add(user);
+        }
+    }
+
+    private void LoadChats()
+    {
+        cbmChats.Items.Clear();
+
+        foreach (ChatHistory chat in ClientManager.GetAllChats())
+        {
+            cbmChats.Items.Add(chat);
+        }
+    }
+
+    private void btnCreateUser_Click(object sender, EventArgs e)
     {
         try
         {
-            if (_client.Connected)
+            UserInfo user = new UserInfo
             {
-                MessageBox.Show("Already connected to server.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            if (_client.Client == null)
-            {
-                _client = new TcpClient();
-            }
-            await _client.ConnectAsync(_ipAddress, SERVER_PORT);
+                UserName = txtUsername.Text,
+                IpAddress = txtIp.Text,
+                Port = int.Parse(txtRemotePort.Text)
+            };
 
-            //MessageBox.Show($"Connected to server: {_client.Client.RemoteEndPoint}");
+            ClientManager.SaveUser(user);
 
-            btnConnect.Enabled = false;
-            btnSend.Enabled = true;
-            btnDisconnect.Enabled = true; ;
+            LoadUsers();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Connection error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(ex.Message);
+        }
+    }
+
+    private void cmbUsers_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        if (cmbUsers.SelectedItem == null)
+        {
+            return;
+        }
+
+        _currentUser = (UserInfo)cmbUsers.SelectedItem;
+
+        btnStart.Enabled = true;
+
+        LoadChats();
+
+        cbmChats.Enabled = true;
+    }
+
+    private void btnStart_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            int localPort = int.Parse(txtLocalPort.Text);
+
+            _udpClient = new UdpClient(localPort);
+
+            _ = Task.Run(ReceiveMessages);
+
+            btnSend.Enabled = true;
+            btnGetColorMessage.Enabled = true;
+
+            MessageBox.Show("Client started");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message);
         }
     }
 
@@ -42,49 +111,125 @@ public partial class FormClient : Form
     {
         try
         {
-            string message = "GET";
-            byte[] data = System.Text.Encoding.UTF8.GetBytes(message);
-            await _client.GetStream().WriteAsync(data, 0, data.Length);
+            ChatMessage msg = new ChatMessage
+            {
+                Sender = _currentUser,
+                Text = txtMessage.Text,
+                ArgbColor = _ownColor.ToArgb()
+            };
 
-            byte[] buffer = new byte[4096];
-            int bytesRead = await _client.GetStream().ReadAsync(buffer, 0, buffer.Length);
+            string json = msg.ToJson();
 
-            string answer = System.Text.Encoding.UTF8.GetString(buffer, 0, bytesRead);
-            txtAnswer.Text = answer;
+            byte[] data = Encoding.UTF8.GetBytes(json);
+
+            IPEndPoint remoteEp = new IPEndPoint(
+                IPAddress.Parse(txtIp.Text),
+                int.Parse(txtRemotePort.Text));
+
+            await _udpClient.SendAsync(data, data.Length, remoteEp);
+
+            UserInfo remoteUser = new UserInfo
+            {
+                IpAddress = remoteEp.Address.ToString(),
+                Port = remoteEp.Port,
+                UserName = "RemoteUser"
+            };
+
+            ClientManager.AppendMessage(remoteUser, msg);
+
+            AddMessage(msg);
+
+            txtMessage.Clear();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error sending message: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Error sending message: {ex.Message}");
         }
     }
-    private async void btnDisconnect_Click(object sender, EventArgs e)
-    {
-        await Disconnect();
 
-        btnConnect.Enabled = true;
-        btnSend.Enabled = false;
-        btnDisconnect.Enabled = false;
-    }
-    private async void FormClient_FormClosing(object sender, FormClosingEventArgs e)
+    private async Task ReceiveMessages()
     {
-        await Disconnect();
+        while (true)
+        {
+            try
+            {
+                UdpReceiveResult result = await _udpClient.ReceiveAsync();
+
+                string json = Encoding.UTF8.GetString(result.Buffer);
+
+                ChatMessage? msg = ChatMessage.FromJson(json);
+
+                if (msg != null)
+                {
+                    UserInfo remoteUser = new UserInfo
+                    {
+                        UserName = msg.Sender.UserName,
+                        IpAddress = result.RemoteEndPoint.Address.ToString(),
+                        Port = result.RemoteEndPoint.Port
+                    };
+
+                    ClientManager.AppendMessage(remoteUser, msg);
+
+                    Invoke(() =>
+                    {
+                        AddMessage(msg);
+
+                        LoadChats();
+                    });
+                }
+            }
+            catch
+            {
+                break;
+            }
+        }
     }
-    private async Task Disconnect()
+
+    private void AddMessage(ChatMessage msg)
+    {
+        rtbChat.SelectionColor = Color.FromArgb(msg.ArgbColor);
+
+        rtbChat.AppendText(msg + Environment.NewLine);
+
+        rtbChat.ScrollToCaret();
+    }
+
+    private void btnGetColorMessage_Click(object sender, EventArgs e)
+    {
+        ColorDialog colorDialog = new();
+
+        if (colorDialog.ShowDialog() == DialogResult.OK)
+        {
+            _ownColor = colorDialog.Color;
+        }
+    }
+
+    private void cbmChats_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        if (cbmChats.SelectedItem == null)
+        {
+            return;
+        }
+
+        ChatHistory history = (ChatHistory)cbmChats.SelectedItem;
+
+        rtbChat.Clear();
+
+        foreach (ChatMessage msg in history.Messages)
+        {
+            AddMessage(msg);
+        }
+    }
+
+    private void FormClient_FormClosing(object sender, FormClosingEventArgs e)
     {
         try
         {
-            if (_client != null && _client.Connected)
-            {
-                byte[] data = System.Text.Encoding.UTF8.GetBytes("DISCONNECT");
-
-                await _client.GetStream().WriteAsync(data, 0, data.Length);
-
-                _client.Close();
-            }
+            _udpClient?.Close();
         }
-        catch (Exception ex)
+        catch
         {
-            MessageBox.Show($"Disconnect error: {ex.Message}");
+
         }
     }
 }
